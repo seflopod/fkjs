@@ -3,11 +3,11 @@
 		"utils.js",
 		"engine.js",
 		"game.js"
-	];
-	var newScript;
-	otherScripts.forEach(function(ele) {
-		newScript = document.createElement("script");
+	].forEach(function(ele) {
+		var newScript = document.createElement("script");
 		newScript.src = ele;
-		document.getElementsByTagName("head")[0].appendChild(newScript);
+		newScript.async = false;
+		//document.getElementsByTagName("head")[0].appendChild(newScript);
+		document.head.appendChild(newScript);
 	});
 })();
