@@ -24,6 +24,8 @@ var engine = function() {
 	//array for functions to call when engine has completed initializtion
 	eng.oninit = [];
 
+
+
 	////////////////////////////////////////////////////////////////////////////
 	//////////////////////// ALL OF THOSE OTHER OBJECTS ////////////////////////
 	////////////////////////////////////////////////////////////////////////////
@@ -37,94 +39,85 @@ var engine = function() {
 	};
 
 	eng.input = function() {
-		var that = {};
-		that.keysdown = {};
+		
+		this.keysdown = {};
 		window.addEventListener("keydown", function(e) {
-			that.keysdown[e.keyCode] = true;
+			this.keysdown[e.keyCode] = true;
 		});
 
 		window.addEventListener("keyup", function(e) {
-			delete that.keysdown[e.keyCode];
+			delete this.keysdown[e.keyCode];
 		});
-		return that;
+		
 	}();
 
 	eng.Vec2 = function(x, y) {
 		if(arguments.length === 0) {
 			x = 0;
 			y = 0;
-		}
-
-		var that = {};
-		that.x = x;
-		that.y = y;
-		that.sqrMagnitude = function() {
-			return utils.strip(that.x * that.x + that.y * that.y);
-		};
-		that.magnitude = function() {
-			return Math.sqrt(that.sqrMagnitude());
-		};
-		that.normalized = function() {
-			var mag = that.magnitude();
-			return eng.Vec2(that.x / mag, that.y / mag);
-		};
-		that.makeNormal = function() {
-			var mag = that.magnitude();
-			that.x /= mag;
-			that.y /= mag;
-		};
-
-		return that;
+		}		
+		this.x = x;
+		this.y = y;
+	};
+	eng.Vec2.prototype.sqrMagnitude = function() {
+		return utils.strip(this.x * this.x + this.y * this.y);
+	};
+	eng.Vec2.prototype.magnitude = function() {
+		return Math.sqrt(this.sqrMagnitude());
+	};
+	eng.Vec2.prototype.normalized = function() {
+		var mag = this.magnitude();
+		return eng.Vec2(this.x / mag, this.y / mag);
+	};
+	eng.Vec2.prototype.makeNormal = function() {
+		var mag = this.magnitude();
+		this.x /= mag;
+		this.y /= mag;
 	};
 
-	eng.vec2utils = {
-		dot: function(vecA, vecB) {
-			return utils.strip(vecA.x * vecB.x + vecA.y * vecB.y);
-		},
-		angle: function(vecA, vecB) {
-			var dotProduct = eng.vec2utils.dot(vecA, vecB);
-			return Math.acos(utils.strip(dotProduct / (vecA.magnitude() * vecB.magnitude())));
-		},
-		distance: function(vecA, vecB) {
-			var vec = eng.Vec2(vecB.x - vecA.x, vecB.y - vecB.y);
-			return vec.magnitude();
-		},
-		lerp: function(vecA, vecB, t) {
-			t = utils.clamp(t, 0, 1);
-			var newX = utils.strip(t * (vecB.x - vecA.x) / 2);
-			var newY = vecA.y + (vecB.y - vecA.y) * (newX - vecA.x) / (vecB.x - vecA.x);
-			return eng.Vec2(newX, newY);
-		}
+	eng.Vec2.dot = function(vecA, vecB) {
+		return utils.strip(vecA.x * vecB.x + vecA.y * vecB.y);
+	};
+	eng.Vec2.distance = function(vecA, vecB) {
+		var vec = eng.Vec2(vecB.x - vecA.x, vecB.y - vecB.y);
+		return vec.magnitude();
+	};
+	eng.Vec2.angle = function(vecA, vecB) {
+		var dotProduct = eng.vec2utils.dot(vecA, vecB);
+		return Math.acos(utils.strip(dotProduct / (vecA.magnitude() * vecB.magnitude())));
+	};
+	eng.Vec2.lerp = function(vecA, vecB, t) {
+		t = utils.clamp(t, 0, 1);
+		var newX = utils.strip(t * (vecB.x - vecA.x) / 2);
+		var newY = vecA.y + (vecB.y - vecA.y) * (newX - vecA.x) / (vecB.x - vecA.x);
+		return eng.Vec2(newX, newY);
 	};
 
 	eng.Sprite = function(image, numSubImages, subImageWidth, subImageHeight) {
-		var that = {};
-		that.image = image;
-		that.width = image.naturalWidth;
-		that.height = image.naturalHeight;
-		that.numSubImages = numSubImages;
-		that.subImageWidth = subImageWidth;
-		that.subImageHeight = subImageHeight;
-		return that;
+		this.image = image;
+		this.width = image.naturalWidth;
+		this.height = image.naturalHeight;
+		this.numSubImages = numSubImages;
+		this.subImageWidth = subImageWidth;
+		this.subImageHeight = subImageHeight;
 	};
 
-	eng.SpriteResource = function(name, resLocation, numSubImages, subImageWidth, subImageHeight) {
-		var that = {};
-		that.name = name;
-		that.resLocation = resLocation;
-		that.numSubImages = Math.max(1, numSubImages);
-		that.subImageWidth = Math.max(1, subImageWidth);
-		that.subImageHeight = Math.max(1, subImageHeight);
-		return that;
+	eng.SpriteResource = function(name, location, numSubImages, subImageWidth, subImageHeight) {
+		this.name = name;
+		this.location = location;
+		this.numSubImages = Math.max(1, numSubImages);
+		this.subImageWidth = Math.max(1, subImageWidth);
+		this.subImageHeight = Math.max(1, subImageHeight);
 	};
 
 	eng.loadSprites = function(spriteResourcesArray, callback) {
 		var sprites = {};
 		var loadedSprites = 0;
 		var numSprites = spriteResourcesArray.length;
-		spriteResourcesArray.forEach(function(res) {
+
+		var createImgElement = function(res) {
 			var img = new Image();
-			img.src = res.resLocation;
+			img.src = res.location;
 			img.onload = function() {
 				sprites[res.name] = eng.Sprite(img, res.numSubImages, res.subImageWidth, res.subImageHeight);
 				if(++loadedSprites >= numSprites) {
@@ -137,99 +130,98 @@ var engine = function() {
 								". Sprite named " + res.name + " not created.");
 				loadedSprites++;
 			};
-		});
+		};
+
+		spriteResourcesArray.forEach(createImgElement);
 	};
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// COMPONENTS //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 	eng.Transformation = function() {
-		var that = {};
-		that.position = eng.Vec2(0, 0);
-		that.rotation = 0;
-		that.scale = eng.Vec2(1, 1);
-		return that;
+		this.position = new eng.Vec2(0, 0);
+		this.rotation = 0;
+		this.scale = new eng.Vec2(1, 1);
 	};
 
 	eng.Drawer = function(ctx) {
-		var that = {};
+		console.log("Calling Drawer function");
+		
 		if(ctx) {
-			that.context = ctx;
+			this.context = ctx;
 		} else {
-			that.context = null;
+			this.context = null;
 		}
-		that.draw = function() {
-			//draw something
-			//maybe throw error for this?
-		};
-		eng.drawables.push(that);
-		return that;
+		this.draw = null;
+		eng.drawables.push(this);
 	};
 
 	eng.SpriteDrawer = function(ctx) {
-		var that = eng.Drawer(ctx);
-		that.imageSpeed = 0; //per second speed
-		that.curSubIndex = 0;
-		that.loop = true;
-		that.sprite = null;
-		that.draw = function() {
-			if(that.gameObject &&
-				that.context &&
-				that.sprite) {
-				//draws as if the position is the TOP LEFT of the sprite
-				//I don't know if this is good, bad, or neither.  I should probably
-				//have an option for it at some point.
-				var pos = that.gameObject.transform.position;
-				that.context.drawImage(that.sprite.image,
-										that.curSubIndex * that.sprite.subImageWidth,
-										0,
-										that.sprite.subImageWidth,
-										that.sprite.subImageHeight,
-										pos.x,
-										pos.y,
-										that.sprite.subImageWidth * that.gameObject.transform.scale.x,
-										that.sprite.subImageHeight * that.gameObject.transform.scale.y);
+		eng.Drawer.call(this, ctx);
+		this.imageSpeed = 0; //per second speed
+		this.curSubIndex = 0;
+		this.loop = true;
+		this.sprite = null;
+	};
+
+	eng.SpriteDrawer.prototype = Object.create(eng.Drawer.prototype);
+	eng.SpriteDrawer.prototype.constructor = eng.SpriteDrawer;
+
+	eng.SpriteDrawer.prototype.draw = function() {
+		if(this.gameObject && this.context && this.sprite) {
+			//draws as if the position is the TOP LEFT of the sprite
+			//I don't know if this is good, bad, or neither.  I should probably
+			//have an option for it at some point.
+			var pos = this.gameObject.transform.position;
+			this.context.drawImage(this.sprite.image,
+									this.curSubIndex * this.sprite.subImageWidth,
+									0,
+									this.sprite.subImageWidth,
+									this.sprite.subImageHeight,
+									pos.x,
+									pos.y,
+									this.sprite.subImageWidth * this.gameObject.transform.scale.x,
+									this.sprite.subImageHeight * this.gameObject.transform.scale.y);
+		}
+	};
+
+	//Should this just be an update that is run with updatables?
+	eng.SpriteDrawer.prototype.updateSprite = function(dt) {
+		this.curSubIndex = Math.floor(this.imageSpeed * dt);
+		if(this.sprite && this.curSubIndex > this.sprite.numSubImages) {
+			if(this.loop) {
+				this.curSubIndex = 0;
+			} else {
+				this.curSubIndex -= 1;
 			}
-		};
-		that.updateSprite = function(dt) {
-			that.curSubIndex = Math.floor(that.imageSpeed * dt);
-			if(that.sprite && that.curSubIndex > that.sprite.numSubImages) {
-				if(that.loop) {
-					that.curSubIndex = 0;
-				} else {
-					that.curSubIndex -= 1;
-				}
-			}
-		};
-		return that;
+		}
 	};
 
 	eng.GameObject = function() {
-		var that = {};
+		this.isActive = true;
+		this.transform = new eng.Transformation();
+		this.update = null;
+		eng.updatables.push(this);
+	};
+
+	eng.GameObject.prototype.addComponent = function(componentName) {
+		//need to find a good way to not allocate this every time.
 		var components = {
 			transform: eng.Transformation,
-			drawer: eng.Drawer,
 			spriteDrawer: eng.SpriteDrawer
 		};
-		that.isActive = true;
-		that.transform = eng.Transformation();
-		that.addComponent = function(componentName) {
-			if(typeof components[componentName] !== 'undefined' &&
-				typeof that[componentName] === 'undefined') {
-				that[componentName] = components[componentName]();
-				that[componentName].gameObject = that;
-				return that[componentName];
-			}
 
-			if(typeof that[componentName] !== 'undefined') {
-				return that[componentName];
-			}
+		if(components[componentName] && !this[componentName]) {
+			this[componentName] = new components[componentName]();
+			this[componentName].gameObject = this;
+			return this[componentName];
+		}
 
-			return null;
-		};
-		that.update = null;
-		eng.updatables.push(that);
-		return that;
+		if(this[componentName]) {
+			return this[componentName];
+		}
+
+		return null;
 	};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,10 +257,11 @@ var engine = function() {
 	};
 
 	eng.mainDraw = function() {
-		//ugh, this needs to change to a buffering system at some point
+		//ugh, I keep reading about how this might be bad, but I'm not sure how
+		//to fix it yet.
 		eng.context.clearRect(0, 0, eng.canvas.width, eng.canvas.height);
 		eng.drawables.forEach(function(ele) {
-			if(ele.gameObject.isActive) {
+			if(ele.gameObject && ele.gameObject.isActive && ele.draw) {
 				ele.draw();
 			}
 		});
