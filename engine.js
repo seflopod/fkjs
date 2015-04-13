@@ -1,4 +1,4 @@
-var engine = function() {
+var engine = (function() {
 	var eng = {};
 	////////////////////////////////////////////////////////////////////////////
 	///////////////////////////// ENGINE VARIABLES /////////////////////////////
@@ -38,18 +38,22 @@ var engine = function() {
 				posA.y + hA > posB.y;
 	};
 
-	eng.input = function() {
-		
-		this.keysdown = {};
-		window.addEventListener("keydown", function(e) {
-			this.keysdown[e.keyCode] = true;
-		});
+	eng.input = (function() {
+		var that = {};
 
-		window.addEventListener("keyup", function(e) {
-			delete this.keysdown[e.keyCode];
-		});
+		that.keysdown = {};
+		var onKeyDown = function(e) {
+			that.keysdown[e.keyCode] = true;
+		};
+		var onKeyUp = function(e) {
+			delete that.keysdown[e.keyCode];
+		};
+
+		window.addEventListener("keydown", onKeyDown);
+		window.addEventListener("keyup", onKeyUp);
 		
-	}();
+		return that;
+	}());
 
 	eng.Vec2 = function(x, y) {
 		if(arguments.length === 0) {
@@ -59,22 +63,23 @@ var engine = function() {
 		this.x = x;
 		this.y = y;
 	};
-	eng.Vec2.prototype.sqrMagnitude = function() {
+	eng.Vec2.prototype = {
+		sqrMagnitude: function() {
 		return utils.strip(this.x * this.x + this.y * this.y);
+		},
+		magnitude: function() {
+			return Math.sqrt(this.sqrMagnitude());
+		},
+		normalized: function() {
+			var mag = this.magnitude();
+			return eng.Vec2(this.x / mag, this.y / mag);
+		},
+		makeNormal: function() {
+			var mag = this.magnitude();
+			this.x /= mag;
+			this.y /= mag;
+		}
 	};
-	eng.Vec2.prototype.magnitude = function() {
-		return Math.sqrt(this.sqrMagnitude());
-	};
-	eng.Vec2.prototype.normalized = function() {
-		var mag = this.magnitude();
-		return eng.Vec2(this.x / mag, this.y / mag);
-	};
-	eng.Vec2.prototype.makeNormal = function() {
-		var mag = this.magnitude();
-		this.x /= mag;
-		this.y /= mag;
-	};
-
 	eng.Vec2.dot = function(vecA, vecB) {
 		return utils.strip(vecA.x * vecB.x + vecA.y * vecB.y);
 	};
@@ -102,7 +107,8 @@ var engine = function() {
 		this.subImageHeight = subImageHeight;
 	};
 
-	eng.SpriteResource = function(name, location, numSubImages, subImageWidth, subImageHeight) {
+	eng.SpriteResource = function(name, location, numSubImages, subImageWidth,
+									subImageHeight) {
 		this.name = name;
 		this.location = location;
 		this.numSubImages = Math.max(1, numSubImages);
@@ -119,14 +125,18 @@ var engine = function() {
 			var img = new Image();
 			img.src = res.location;
 			img.onload = function() {
-				sprites[res.name] = eng.Sprite(img, res.numSubImages, res.subImageWidth, res.subImageHeight);
+				sprites[res.name] = new eng.Sprite(img,
+													res.numSubImages,
+													res.subImageWidth,
+													res.subImageHeight);
+				console.log("Loaded " + res.location + " as " + res.name);
 				if(++loadedSprites >= numSprites) {
 					console.log("All sprites loaded");
 					callback(sprites);
-				}
+				}				
 			};
 			img.onerror = function() {
-				console.log("Unable to load the image at " + res.resLocation +
+				console.log("Unable to load the image at " + res.location +
 								". Sprite named " + res.name + " not created.");
 				loadedSprites++;
 			};
@@ -144,29 +154,31 @@ var engine = function() {
 		this.scale = new eng.Vec2(1, 1);
 	};
 
-	eng.Drawer = function(ctx) {
-		console.log("Calling Drawer function");
-		
+	eng.SpriteDrawer = function(go, ctx) {
 		if(ctx) {
 			this.context = ctx;
 		} else {
 			this.context = null;
 		}
-		this.draw = null;
-		eng.drawables.push(this);
-	};
-
-	eng.SpriteDrawer = function(ctx) {
-		eng.Drawer.call(this, ctx);
+		this.gameObject = go;
 		this.imageSpeed = 0; //per second speed
 		this.curSubIndex = 0;
 		this.loop = true;
 		this.sprite = null;
 	};
-
-	eng.SpriteDrawer.prototype = Object.create(eng.Drawer.prototype);
-	eng.SpriteDrawer.prototype.constructor = eng.SpriteDrawer;
-
+	eng.SpriteDrawer.prototype = {
+		updateSprite: function(dt) {
+			//Should this just be an update that is run with updatables?
+			this.curSubIndex = Math.floor(this.imageSpeed * dt);
+			if(this.sprite && this.curSubIndex > this.sprite.numSubImages) {
+				if(this.loop) {
+					this.curSubIndex = 0;
+				} else {
+					this.curSubIndex -= 1;
+				}
+			}
+		}
+	};
 	eng.SpriteDrawer.prototype.draw = function() {
 		if(this.gameObject && this.context && this.sprite) {
 			//draws as if the position is the TOP LEFT of the sprite
@@ -174,54 +186,25 @@ var engine = function() {
 			//have an option for it at some point.
 			var pos = this.gameObject.transform.position;
 			this.context.drawImage(this.sprite.image,
-									this.curSubIndex * this.sprite.subImageWidth,
-									0,
-									this.sprite.subImageWidth,
-									this.sprite.subImageHeight,
-									pos.x,
-									pos.y,
-									this.sprite.subImageWidth * this.gameObject.transform.scale.x,
-									this.sprite.subImageHeight * this.gameObject.transform.scale.y);
+								this.curSubIndex * this.sprite.subImageWidth,
+								0,
+								this.sprite.subImageWidth,
+								this.sprite.subImageHeight,
+								pos.x,
+								pos.y,
+								this.sprite.subImageWidth *
+									this.gameObject.transform.scale.x,
+								this.sprite.subImageHeight *
+									this.gameObject.transform.scale.y);
 		}
 	};
-
-	//Should this just be an update that is run with updatables?
-	eng.SpriteDrawer.prototype.updateSprite = function(dt) {
-		this.curSubIndex = Math.floor(this.imageSpeed * dt);
-		if(this.sprite && this.curSubIndex > this.sprite.numSubImages) {
-			if(this.loop) {
-				this.curSubIndex = 0;
-			} else {
-				this.curSubIndex -= 1;
-			}
-		}
-	};
+	eng.SpriteDrawer.prototype.constructor = eng.SpriteDrawer;
 
 	eng.GameObject = function() {
 		this.isActive = true;
 		this.transform = new eng.Transformation();
-		this.update = null;
 		eng.updatables.push(this);
-	};
-
-	eng.GameObject.prototype.addComponent = function(componentName) {
-		//need to find a good way to not allocate this every time.
-		var components = {
-			transform: eng.Transformation,
-			spriteDrawer: eng.SpriteDrawer
-		};
-
-		if(components[componentName] && !this[componentName]) {
-			this[componentName] = new components[componentName]();
-			this[componentName].gameObject = this;
-			return this[componentName];
-		}
-
-		if(this[componentName]) {
-			return this[componentName];
-		}
-
-		return null;
+		eng.drawables.push(this);
 	};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,8 +244,8 @@ var engine = function() {
 		//to fix it yet.
 		eng.context.clearRect(0, 0, eng.canvas.width, eng.canvas.height);
 		eng.drawables.forEach(function(ele) {
-			if(ele.gameObject && ele.gameObject.isActive && ele.draw) {
-				ele.draw();
+			if(ele.isActive && ele.drawer && ele.drawer.draw) {
+				ele.drawer.draw();
 			}
 		});
 	};
@@ -296,4 +279,4 @@ var engine = function() {
 	};
 
 	return eng;
-}();
+}());
